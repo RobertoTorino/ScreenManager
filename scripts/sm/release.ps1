@@ -6,29 +6,16 @@ param(
 
 Write-Host "=== ScreenManager Release Script ==="
 
-# === GET ENVIRONMENT INFO ===
-$localTag = "LocalBuild_" + (Get-Date -Format "yyyyMMdd_HHmmss")
-
-# === CLEAN-UP ===
-$baseExeName    = "sm"
-$versionedExe   = "${baseExeName}_v$version.exe"
-$versionedZip   = "${baseExeName}_v$version.zip"
-$finalExe       = "${baseExeName}_${localTag}.exe"
-$zipName        = "${baseExeName}_${localTag}.zip"
-
-Write-Host ":: Cleaning previous builds..."
-Remove-Item $versionedExe, $versionedZip, $zipName, $finalExe -ErrorAction SilentlyContinue
-
-# Define build folder
-$buildFolder = "new_builds"
-
-# Only remove if defined and exists
-if ($buildFolder -and (Test-Path $buildFolder)) {
-    Remove-Item -Recurse -Force $buildFolder
-    Write-Host ":: Removed old build folder"
+# === Git LFS setup ===
+git lfs install | Out-Null
+$patterns = @("*.zip", "*.wav", "*.exe", "*.dll")
+foreach ($p in $patterns) {
+    git lfs track $p | Out-Null
 }
+git add .gitattributes
 
-# === COMMIT ===
+
+# === Only commit if there are changes ===
 if (-not (git status --porcelain))
 {
     Write-Host ":: No changes to commit."
@@ -37,6 +24,7 @@ else
 {
     git add .
     git commit -m "$Message"
+    git push
 }
 
 
@@ -95,9 +83,11 @@ git push origin $newTag
 
 Write-Host ":: Committed and tagged as $newTag."
 
+
 # === Update changelog automatically ===
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
 $changelogPath = "changelog.txt"
+
 
 # Get all commits since last tag
 if ($lastTag -ne "v0.0.0")
@@ -112,15 +102,18 @@ else
 # Build changelog entry
 $changelogEntry = "[$timestamp] $newTag`n$commits`n"
 
+
 # Append to changelog.txt
 Add-Content -Path $changelogPath -Value $changelogEntry
 Write-Host ":: Updated changelog.txt:"
 Write-Host ":: $changelogEntry"
 
+
 # Stage and push changelog
 git add $changelogPath
 git commit -m "Update changelog for $newTag"
 git push
+
 
 # === Update version.txt ===
 $versionFile = "version.txt"
@@ -128,6 +121,7 @@ $versionInfo = "$newTag ($timestamp)"
 Set-Content -Path $versionFile -Value $versionInfo
 Write-Host ":: Updated version.txt: $versionInfo"
 
+# === Add version.txt ===
 git add $versionFile
 git commit -m "Update version file for $newTag"
 git push
@@ -210,7 +204,6 @@ foreach ($run in $oldRuns) {
         Write-Warning ":: Failed to delete run $($run.id): $_"
     }
 }
-
 
 
 Write-Host ":: Old workflows, releases and tags cleaned up, keeping the latest $keepLatest release(s)."
