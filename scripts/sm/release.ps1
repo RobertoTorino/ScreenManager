@@ -128,147 +128,147 @@ git push
 
 Write-Host ":: Release complete: $newTag"
 
-$workflowUrl = "https://github.com/RobertoTorino/ScreenManager/actions/workflows/sm.yml"
-Write-Host ":: Monitor workflow here: $workflowUrl"
-
-
-Write-Host ":: Removing Old Releases: "
-$repo       = "RobertoTorino/ScreenManager"
-$token      = $env:GITHUB_TOKEN
-$keepLatest = 2
-
-# Get all releases sorted by created_at descending
-$releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" `
-                              -Headers @{ Authorization = "token $token" } |
-        Sort-Object { $_.created_at } -Descending
-
-# Skip the newest $keepLatest releases
-$oldReleases = $releases | Select-Object -Skip $keepLatest
-
-foreach ($rel in $oldReleases) {
-    Write-Host ":: Deleting release: $($rel.name) / tag: $($rel.tag_name)"
-
-    # Delete release
-    Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/$($rel.id)" `
-                      -Method Delete `
-                      -Headers @{ Authorization = "token $token" }
-
-    # Delete the tag on GitHub
-    git push origin --delete $rel.tag_name
-    Write-Host ":: Deleted release and tag: $($rel.tag_name)"
-}
-
-# === Keep only the latest 2 tags ===
-$allTags = git tag --sort=-creatordate
-$tagsToDelete = $allTags | Select-Object -Skip 2
-
-foreach ($tag in $tagsToDelete) {
-    Write-Host ":: Deleting old tag: $tag"
-
-    # Delete local tag
-    git tag -d $tag
-
-    # Delete remote tag
-    git push origin :refs/tags/$tag
-}
-
-$repoOwner = "RobertoTorino"
-$repoName  = "ScreenManager"
-$token     = $env:GITHUB_TOKEN
-$keepRuns  = 2   # how many recent workflow runs to keep
-$workflowId = "sm.yml"  # filename or workflow ID
-
-$headers = @{
-    "Accept"        = "application/vnd.github+json"
-    "Authorization" = "Bearer $token"
-}
-
-# Get all workflow runs for the workflow
-$response = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/actions/workflows/$workflowId/runs?per_page=100" -Headers $headers
-
-# Sort by created_at descending
-$allRuns = $response.workflow_runs | Sort-Object { $_.created_at } -Descending
-
-
-$oldRuns = $allRuns | Select-Object -Skip $keepRuns
-
-foreach ($run in $oldRuns) {
-    Write-Host ":: Deleting workflow run $($run.id) (status: $($run.status), conclusion: $($run.conclusion))"
-
-    try {
-        Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/actions/runs/$($run.id)" `
-                          -Method Delete `
-                          -Headers $headers
-        Write-Host ":: Deleted workflow run $($run.id)"
-    } catch {
-        Write-Warning ":: Failed to delete run $($run.id): $_"
-    }
-}
-
-
-Write-Host ":: Old workflows, releases and tags cleaned up, keeping the latest $keepLatest release(s)."
-
-
-# CHECK GITHUB WORKFLOW STATUS + SHOW RELEASE
-Write-Host ":: Now checking workflow status and release info... "
-$branch    = "main"
-$headers = @{
-    "Accept"        = "application/vnd.github+json"
-    "Authorization" = "Bearer $env:GITHUB_TOKEN"
-}
-
-Write-Host "`n:: Checking latest GitHub Actions workflow run..."
-
-# --- Wait for workflow completion (poll every 15s) ---
-$maxAttempts = 40
-$attempt = 0
-$runCompleted = $false
-
-do {
-    $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/actions/runs?branch=$branch&per_page=1" -Headers $headers
-    $latestRun = $response.workflow_runs[0]
-
-    Write-Host (":: Current status: {0} (conclusion: {1})" -f $latestRun.status, $latestRun.conclusion)
-
-    if ($latestRun.status -eq "completed") {
-        $runCompleted = $true
-        break
-    }
-
-    Start-Sleep -Seconds 15
-    $attempt++
-} while ($attempt -lt $maxAttempts)
-
-if (-not $runCompleted) {
-    Write-Warning ":: Timeout waiting for GitHub workflow to complete."
-    Exit 1
-}
-
-if ($latestRun.conclusion -ne "success") {
-    Write-Host ":: GitHub workflow failed. Conclusion: $($latestRun.conclusion)"
-    Exit 1
-}
-
-Write-Host ":: GitHub workflow succeeded!"
-Write-Host ":: Commit: $($latestRun.head_commit.message)"
-Write-Host ":: Run URL: $($latestRun.html_url)`n"
-
-
-# --- Find latest release and show link ---
-try {
-$releaseResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/releases/latest" -Headers $headers
-} catch {
-    Write-Warning ":: No release found"
-}
-
-if ($releaseResponse) {
-    Write-Host "================ RELEASE INFO ================"
-    Write-Host ":: Tag: $($releaseResponse.tag_name)"
-    Write-Host ":: Name: $($releaseResponse.name)"
-    Write-Host ":: URL: $($releaseResponse.html_url)"
-    Write-Host "=============================================="
-} else {
-    Write-Warning ":: No release found."
-}
-
-Write-Host ":: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: "
+#$workflowUrl = "https://github.com/RobertoTorino/ScreenManager/actions/workflows/sm.yml"
+#Write-Host ":: Monitor workflow here: $workflowUrl"
+#
+#
+#Write-Host ":: Removing Old Releases: "
+#$repo       = "RobertoTorino/ScreenManager"
+#$token      = $env:GITHUB_TOKEN
+#$keepLatest = 2
+#
+## Get all releases sorted by created_at descending
+#$releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" `
+#                              -Headers @{ Authorization = "token $token" } |
+#        Sort-Object { $_.created_at } -Descending
+#
+## Skip the newest $keepLatest releases
+#$oldReleases = $releases | Select-Object -Skip $keepLatest
+#
+#foreach ($rel in $oldReleases) {
+#    Write-Host ":: Deleting release: $($rel.name) / tag: $($rel.tag_name)"
+#
+#    # Delete release
+#    Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/$($rel.id)" `
+#                      -Method Delete `
+#                      -Headers @{ Authorization = "token $token" }
+#
+#    # Delete the tag on GitHub
+#    git push origin --delete $rel.tag_name
+#    Write-Host ":: Deleted release and tag: $($rel.tag_name)"
+#}
+#
+## === Keep only the latest 2 tags ===
+#$allTags = git tag --sort=-creatordate
+#$tagsToDelete = $allTags | Select-Object -Skip 2
+#
+#foreach ($tag in $tagsToDelete) {
+#    Write-Host ":: Deleting old tag: $tag"
+#
+#    # Delete local tag
+#    git tag -d $tag
+#
+#    # Delete remote tag
+#    git push origin :refs/tags/$tag
+#}
+#
+#$repoOwner = "RobertoTorino"
+#$repoName  = "ScreenManager"
+#$token     = $env:GITHUB_TOKEN
+#$keepRuns  = 2   # how many recent workflow runs to keep
+#$workflowId = "sm.yml"  # filename or workflow ID
+#
+#$headers = @{
+#    "Accept"        = "application/vnd.github+json"
+#    "Authorization" = "Bearer $token"
+#}
+#
+## Get all workflow runs for the workflow
+#$response = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/actions/workflows/$workflowId/runs?per_page=100" -Headers $headers
+#
+## Sort by created_at descending
+#$allRuns = $response.workflow_runs | Sort-Object { $_.created_at } -Descending
+#
+#
+#$oldRuns = $allRuns | Select-Object -Skip $keepRuns
+#
+#foreach ($run in $oldRuns) {
+#    Write-Host ":: Deleting workflow run $($run.id) (status: $($run.status), conclusion: $($run.conclusion))"
+#
+#    try {
+#        Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/actions/runs/$($run.id)" `
+#                          -Method Delete `
+#                          -Headers $headers
+#        Write-Host ":: Deleted workflow run $($run.id)"
+#    } catch {
+#        Write-Warning ":: Failed to delete run $($run.id): $_"
+#    }
+#}
+#
+#
+#Write-Host ":: Old workflows, releases and tags cleaned up, keeping the latest $keepLatest release(s)."
+#
+#
+## CHECK GITHUB WORKFLOW STATUS + SHOW RELEASE
+#Write-Host ":: Now checking workflow status and release info... "
+#$branch    = "main"
+#$headers = @{
+#    "Accept"        = "application/vnd.github+json"
+#    "Authorization" = "Bearer $env:GITHUB_TOKEN"
+#}
+#
+#Write-Host "`n:: Checking latest GitHub Actions workflow run..."
+#
+## --- Wait for workflow completion (poll every 15s) ---
+#$maxAttempts = 40
+#$attempt = 0
+#$runCompleted = $false
+#
+#do {
+#    $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/actions/runs?branch=$branch&per_page=1" -Headers $headers
+#    $latestRun = $response.workflow_runs[0]
+#
+#    Write-Host (":: Current status: {0} (conclusion: {1})" -f $latestRun.status, $latestRun.conclusion)
+#
+#    if ($latestRun.status -eq "completed") {
+#        $runCompleted = $true
+#        break
+#    }
+#
+#    Start-Sleep -Seconds 15
+#    $attempt++
+#} while ($attempt -lt $maxAttempts)
+#
+#if (-not $runCompleted) {
+#    Write-Warning ":: Timeout waiting for GitHub workflow to complete."
+#    Exit 1
+#}
+#
+#if ($latestRun.conclusion -ne "success") {
+#    Write-Host ":: GitHub workflow failed. Conclusion: $($latestRun.conclusion)"
+#    Exit 1
+#}
+#
+#Write-Host ":: GitHub workflow succeeded!"
+#Write-Host ":: Commit: $($latestRun.head_commit.message)"
+#Write-Host ":: Run URL: $($latestRun.html_url)`n"
+#
+#
+## --- Find latest release and show link ---
+#try {
+#$releaseResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/releases/latest" -Headers $headers
+#} catch {
+#    Write-Warning ":: No release found"
+#}
+#
+#if ($releaseResponse) {
+#    Write-Host "================ RELEASE INFO ================"
+#    Write-Host ":: Tag: $($releaseResponse.tag_name)"
+#    Write-Host ":: Name: $($releaseResponse.name)"
+#    Write-Host ":: URL: $($releaseResponse.html_url)"
+#    Write-Host "=============================================="
+#} else {
+#    Write-Warning ":: No release found."
+#}
+#
+#Write-Host ":: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: :: "
