@@ -86,15 +86,12 @@ switch ( $choice.ToLower())
 
 # New semantic version
 $newTag = "v$major.$minor.$patch"
-Write-Host ":: Creating and pushing tag $newTag..."
+Write-Host "Creating and pushing tag $newTag..."
 
 # Tag and push
-if (-not (git tag --list $newTag)) {
-    git tag $newTag
-    git push origin $newTag
-} else {
-    Write-Host ":: Tag $newTag already exists. Skipping tag creation."
-}
+git tag $newTag
+git push
+git push origin $newTag
 
 Write-Host ":: Committed and tagged as $newTag."
 
