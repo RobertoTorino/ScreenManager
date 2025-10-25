@@ -222,7 +222,7 @@ Write-Host ":: Old workflows, releases and tags cleaned up, keeping the latest $
 # CHECK GITHUB WORKFLOW STATUS + SHOW RELEASE
 Write-Host ":: Now checking workflow status and release info... "
 $repoOwner = "RobertoTorino"
-$repoName  = "Screenmanager"
+$repoName  = "ScreenManager"
 $branch    = "main"
 $headers = @{
     "Accept"        = "application/vnd.github+json"
