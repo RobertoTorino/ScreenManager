@@ -120,7 +120,8 @@ git push
 # === Update version.txt ===
 $versionTxt     = "apps\sm\version.txt"
 $versionInfo    = "$newTag ($timestamp)"
-Set-Content -Path $versionTxt -Value $versionInfo
+$versionTxt = Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')) 'apps\sm\version.txt'
+Set-Content -Path $versionTxt -Value $versionInfo -Encoding UTF8
 Write-Host ":: Updated version.txt: $versionInfo"
 
 git add $versionTxt
