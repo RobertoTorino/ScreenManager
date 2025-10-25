@@ -1,0 +1,54 @@
+--Info given by reddit user CrestfallenOwl--
+
+This will work but if the bit depth of the image doesn't match the original, the colours will be changed/inverted.
+Although that matters little if you just wanna get rid of the bald chemist.
+
+-------------------------------------------------
+
+You need to add 3 BMP files to the game folder (your profile pic in 32x32 pixels, 64x64 and 184x184) where steam_emu.in is located.
+Can do this with Paint: open the image file with Paint, resize image with the stated pixels, and then save it as a .bmp file.
+End result is three .bmp files that are named
+
+(1) Avatar32.bmp
+
+(2) Avatar64.bmp
+
+(3) Avatar184.bmp
+
+Then add the following to the steamemu.ini file (open it with Notepad):
+
+[Avatar]
+
+###
+
+### Bitmap Avatar files
+
+###
+
+### 32x32 Pixel
+
+Small=Avatar32.bmp
+
+###
+
+### 64x64 Pixel
+
+Medium=Avatar64.bmp
+
+###
+
+### 184x184 Pixel
+
+Large=Avatar184.bmp
+
+###
+
+I believe the Steam Emu is applied twice: one for the game and one for the launcher.
+So, probably need to edit the .ini file for both locations.
+
+(1) {game folder}/Launcher/
+
+(2) {game folder} bin/
+----------------------------------------------------
+
+If you have only one steam_emu.ini, just do it for that one, it should work.

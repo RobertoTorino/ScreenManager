@@ -6,8 +6,6 @@ param(
 
 Write-Host "=== ScreenManager Release Script ==="
 
-# === GET ENVIRONMENT INFO ===
-$localTag = "LocalBuild_" + (Get-Date -Format "yyyyMMdd_HHmmss")
 
 # === CLEAN-UP ===
 $baseExeName    = "sm"
@@ -17,7 +15,7 @@ $finalExe       = "${baseExeName}_${localTag}.exe"
 $zipName        = "${baseExeName}_${localTag}.zip"
 
 Write-Host ":: Cleaning previous builds..."
-Remove-Item $versionedExe, $versionedZip, $zipName, $finalExe -ErrorAction SilentlyContinue
+Remove-Item $versionedExe, $versionedZip, "build.log", $zipName, $finalExe -ErrorAction SilentlyContinue
 
 # Define build folder
 $buildFolder = "new_builds"
@@ -37,6 +35,7 @@ else
 {
     git add .
     git commit -m "$Message"
+    git push
 }
 
 
@@ -89,12 +88,9 @@ $newTag = "v$major.$minor.$patch"
 Write-Host ":: Creating and pushing tag $newTag..."
 
 # Tag and push
-if (-not (git tag --list $newTag)) {
-    git tag $newTag
-    git push origin $newTag
-} else {
-    Write-Host ":: Tag $newTag already exists. Skipping tag creation."
-}
+git tag $newTag
+git push
+git push origin $newTag
 
 Write-Host ":: Committed and tagged as $newTag."
 
@@ -137,6 +133,7 @@ git push
 
 Write-Host ":: Release complete: $newTag"
 
+
 $workflowUrl = "https://github.com/RobertoTorino/ScreenManager/actions/workflows/sm.yml"
 Write-Host ":: Monitor workflow here: $workflowUrl"
 
@@ -144,7 +141,7 @@ Write-Host ":: Monitor workflow here: $workflowUrl"
 Write-Host ":: Removing Old Releases: "
 $repo       = "RobertoTorino/ScreenManager"
 $token      = $env:GITHUB_TOKEN
-$keepLatest = 2
+$keepLatest = 1
 
 # Get all releases sorted by created_at descending
 $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" `
@@ -169,7 +166,7 @@ foreach ($rel in $oldReleases) {
 
 # === Keep only the latest 2 tags ===
 $allTags = git tag --sort=-creatordate
-$tagsToDelete = $allTags | Select-Object -Skip 2
+$tagsToDelete = $allTags | Select-Object -Skip 1
 
 foreach ($tag in $tagsToDelete) {
     Write-Host ":: Deleting old tag: $tag"
@@ -181,47 +178,15 @@ foreach ($tag in $tagsToDelete) {
     git push origin :refs/tags/$tag
 }
 
-$repoOwner = "RobertoTorino"
-$repoName  = "ScreenManager"
-$token     = $env:GITHUB_TOKEN
-$keepRuns  = 2   # how many recent workflow runs to keep
-$workflowId = "sm.yml"  # filename or workflow ID
 
-$headers = @{
-    "Accept"        = "application/vnd.github+json"
-    "Authorization" = "Bearer $token"
-}
-
-# Get all workflow runs for the workflow
-$response = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/actions/workflows/$workflowId/runs?per_page=100" -Headers $headers
-
-# Sort by created_at descending
-$allRuns = $response.workflow_runs | Sort-Object { $_.created_at } -Descending
-
-
-$oldRuns = $allRuns | Select-Object -Skip $keepRuns
-
-foreach ($run in $oldRuns) {
-    Write-Host ":: Deleting workflow run $($run.id) (status: $($run.status), conclusion: $($run.conclusion))"
-
-    try {
-        Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/actions/runs/$($run.id)" `
-                          -Method Delete `
-                          -Headers $headers
-        Write-Host ":: Deleted workflow run $($run.id)"
-    } catch {
-        Write-Warning ":: Failed to delete run $($run.id): $_"
-    }
-}
-
-
-
-Write-Host ":: Old workflows, releases and tags cleaned up, keeping the latest $keepLatest release(s)."
+Write-Host ":: Old releases and tags cleaned up, keeping the latest $keepLatest release(s)."
 
 
 # CHECK GITHUB WORKFLOW STATUS + SHOW RELEASE
 Write-Host ":: Now checking workflow status and release info... "
-$branch    = "main"
+#$repoOwner = "YourUserName"
+#$repoName  = "YourRepoName"
+$branch    = "main"        # or whatever branch triggers the workflow
 $headers = @{
     "Accept"        = "application/vnd.github+json"
     "Authorization" = "Bearer $env:GITHUB_TOKEN"
@@ -255,21 +220,17 @@ if (-not $runCompleted) {
 }
 
 if ($latestRun.conclusion -ne "success") {
-    Write-Host ":: GitHub workflow failed. Conclusion: $($latestRun.conclusion)"
+    Write-Host "❌ GitHub workflow failed. Conclusion: $($latestRun.conclusion)"
     Exit 1
 }
 
-Write-Host ":: GitHub workflow succeeded!"
+Write-Host "✅ GitHub workflow succeeded!"
 Write-Host ":: Commit: $($latestRun.head_commit.message)"
 Write-Host ":: Run URL: $($latestRun.html_url)`n"
 
 
 # --- Find latest release and show link ---
-try {
 $releaseResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoOwner/$repoName/releases/latest" -Headers $headers
-} catch {
-    Write-Warning ":: No release found"
-}
 
 if ($releaseResponse) {
     Write-Host "================ RELEASE INFO ================"
