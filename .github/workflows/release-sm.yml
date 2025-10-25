@@ -1,4 +1,4 @@
-# ScreenManager continuous integration workflow configuration
+# Screen Manager continuous integration workflow configuration
 name: CI Build and Release
 
 on:
@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Set up UTF-8 and PowerShell output
         shell: pwsh
@@ -29,24 +31,22 @@ jobs:
           $ErrorActionPreference = 'Stop'
 
           $repoRoot       = $env:GITHUB_WORKSPACE
-          $baseFile       = Join-Path $repoRoot "core\ahk\Compiler\Unicode 32-bit.bin"
-          $ahkCompiler    = Join-Path $repoRoot "core\ahk\Compiler\Ahk2Exe.exe"
+          $baseFile       = Join-Path $repoRoot "ahk\Compiler\Unicode 32-bit.bin"
+          $ahkCompiler    = Join-Path $repoRoot "ahk\Compiler\Ahk2Exe.exe"
+          $mediaFolder    = Join-Path $repoRoot "graphic-settings"
           $input          = Join-Path $repoRoot "apps\sm\sm.ahk"
-          $output         = Join-Path $repoRoot "sm.exe"
+          $output         = Join-Path $repoRoot "apps\sm\sm.exe"
           $icon           = Join-Path $repoRoot "apps\sm\sm.ico"
           $iniPath        = Join-Path $repoRoot "apps\sm\sm.ini"
           $versionTxt     = Join-Path $repoRoot "apps\sm\version.txt"
           $versionDat     = Join-Path $repoRoot "apps\sm\version.dat"
           $versionTpl     = Join-Path $repoRoot "apps\sm\version_template.txt"
-          $versionDat     = Join-Path $repoRoot "apps\sm\version.dat"
-          $settingsFolder = Join-Path $repoRoot "graphic-settings"
           $licensePath    = Join-Path $repoRoot "LICENSE"
           $readmePath     = Join-Path $repoRoot "apps\sm\README.txt"
           $changelogFile  = Join-Path $repoRoot "apps\sm\changelog.txt"
-          $buildFolder    = Join-Path $repoRoot "dist\sm"
-          $extraAssets    = @($readmePath, $iniPath, $licensePath, $versionTxt, $versionDat)
+          $iniPath        = Join-Path $repoRoot "apps\sm\sm.ini"
+          $extraAssets    = @($readmePath, $iniPath, $licensePath)
           
-
           # Extract version number from GitHub tag
           $rawTag = "${env:GITHUB_REF_NAME}"
           $version = $rawTag -replace '^v', ''
@@ -56,7 +56,7 @@ jobs:
           $versionedExe = "sm_v$version.exe"
           $zipName = "sm_v$version.zip"
           
-          $requiredFiles = @($ahkCompiler,$baseFile, $input)
+          $requiredFiles = @($ahkCompiler, $baseFile, $input)
           
           foreach ($file in $requiredFiles) {
             if (!(Test-Path $file)) {
@@ -98,7 +98,7 @@ jobs:
 
           # Deep magic: if not found, check hardcoded place and copy
           if (!(Test-Path $finalExe)) {
-            $knownGood = "D:\a\apps\sm\sm.exe"
+            $knownGood = "D:\a\ScreenManager\ScreenManager\sm.exe"
             if (Test-Path $knownGood) {
               Write-Host ":: Found EXE at $knownGood after all! Copying to $finalExe"
               Copy-Item $knownGood $finalExe -Force
@@ -106,7 +106,7 @@ jobs:
           }
           
           Write-Host ":: Looking for output exe in current folder and repo root..."
-          
+            
           Get-ChildItem -Path $PWD -Filter "sm.exe" -Recurse | ForEach-Object { Write-Host "Found EXE at $($_.FullName)" }
           Get-ChildItem -Path $repoRoot -Filter "sm.exe" -Recurse | ForEach-Object { Write-Host ":: Found EXE at $($_.FullName)" }
 
@@ -119,6 +119,9 @@ jobs:
 
           # UPX
           Write-Host ":: Skipping UPX compression to prevent antivirus false positives."
+          # if (Test-Path $upxPath) {
+          #   & $upxPath --best --lzma $finalExe
+          # }
           
           # Rename EXE to include version number
           if (Test-Path $finalExe) {
@@ -131,33 +134,39 @@ jobs:
           }
 
           # ZIP
-          $toZip = @($versionedExe)
+          $toZip = @($finalExe)
           
-          # Add folders directly to preserve structure
-          foreach ($folder in @($settingsFolder)) {
+          foreach ($file in @($ahkCompiler, $baseFile, $input, $icon)) {
+            if (!(Test-Path $file)) {
+            Write-Error "Required file missing: $file"
+            exit 1
+              } else {
+                Write-Host ":: Found: $file"
+              }
+            }
+          
+          foreach ($folder in @($mediaFolder)) {
             if (Test-Path $folder) {
-                $toZip += $folder
-                Write-Host ":: Added folder to zip: $folder"
+              $files = Get-ChildItem -Path $folder -Recurse -File | Select-Object -ExpandProperty FullName
+              $toZip += $files
+              Write-Host ":: Added folder: $folder"
             } else {
-                Write-Warning "Missing folder: $folder"
+              Write-Warning "Missing folder: $folder"
             }
           }
           
-          # Add extra assets (files in repo root)
           foreach ($asset in $extraAssets) {
             $assetAbs = Join-Path $repoRoot $asset
             if (Test-Path $assetAbs) {
-                $toZip += $assetAbs
-                Write-Host ":: Added file to zip: $assetAbs"
+              $toZip += $assetAbs
+              Write-Host ":: Added to zip: $assetAbs"
             } else {
-                Write-Warning "Not adding (missing): $assetAbs"
+              Write-Warning "Not adding (missing): $assetAbs"
             }
           }
           
-          # --- Create ZIP ---
-          $zipPath = Join-Path $repoRoot $zipName
-          Compress-Archive -Path $toZip -DestinationPath $zipPath -Force
-          Write-Host ":: Created ZIP archive: $zipPath"
+          Compress-Archive -Path $toZip -DestinationPath (Join-Path $repoRoot $zipName) -Force
+          Write-Host ":: Created ZIP archive: $zipName"
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
